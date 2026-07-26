@@ -1,10 +1,20 @@
-from fastapi import FastAPI
-from dotenv import load_dotenv 
 import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-# Cargamos las variables del .env (como el PORT)
+from app.database import engine, Base
+from app import models 
+
+# 1. IMPORTAR ROUTERS
+from app.auth import router as auth_router
+from app.boards.router import router as boards_router
+from app.cards.router import router as cards_router
+
 load_dotenv()
-port = int(os.getenv("PORT", 8000))
+
+# Crear tablas si no existen
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="NeoCare Health API",
@@ -12,10 +22,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# CORS para React
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 2. INCLUIR ROUTERS EN LA APP (Asegúrate de que estas 3 líneas estén)
+app.include_router(auth_router)
+app.include_router(boards_router)
+app.include_router(cards_router)
+
 @app.get("/")
 def read_root():
-    print("¡Hola Lorena! El print está funcionando aquí abajo")
     return {
         "status": "online",
-        "message": "Bienvenida Lorena, la base modular de NeoCare está lista"
+        "message": "Bienvenida Lorena, la base modular y de seguridad de NeoCare está lista"
     }

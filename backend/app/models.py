@@ -85,10 +85,12 @@ class WorkLog(Base):
     __tablename__ = "work_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    hours = Column(Float, nullable=False)
-    description = Column(Text, nullable=True)
     card_id = Column(Integer, ForeignKey("cards.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    hours = Column(Float, nullable=False)
+    date = Column(Date, nullable=False)  # 👈 Cambiado a Date para filtrar semanas limpiamente
+    note = Column(String(200), nullable=True)
+    description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relaciones ORM

@@ -1,12 +1,11 @@
-from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime, date
+from typing import Optional, Union
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # ==========================================
 # 👤 SCHEMAS DE USUARIO Y AUTENTICACIÓN
 # ==========================================
 
-# Esquema base para los datos comunes de un usuario
 class UserBase(BaseModel):
     email: EmailStr
     role: Optional[str] = "doctor"
@@ -14,54 +13,49 @@ class UserBase(BaseModel):
     class Config:
         from_attributes = True
 
-# Datos necesarios para crear un usuario (Registro)
 class UserCreate(UserBase):
     password: str
 
-# Datos que devolvemos cuando alguien consulta un usuario (sin la contraseña)
 class UserResponse(UserBase):
     id: int
     is_active: bool
 
-# Estructura obligatoria para hacer login
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-# Estructura del token que le devolvemos al frontend tras un login con éxito
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-# Datos que viajan encriptados dentro del token
 class TokenData(BaseModel):
     email: Optional[str] = None
 
 
 # ==========================================
-# 🃏 SCHEMAS DE TARJETAS (CARDS)
+# 🃏 SCHEMAS DE TARJETAS / CARDS
 # ==========================================
 
-# Datos base para validar entradas
 class CardBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=100, description="El título es obligatorio (máx 100 caracteres)")
+    title: str = Field(..., min_length=1, max_length=100, description="El título es obligatorio")
     description: Optional[str] = None
-    position: int = Field(default=1, ge=1)
-    due_date: Optional[datetime] = None  # Fecha de vencimiento
+    position: int = Field(default=1, ge=1, description="Posición para ordenación")
+    due_date: Optional[datetime] = None
 
 class CardCreate(CardBase):
-    list_id: int  # La columna a la que pertenece al crearse
+    # Acepta enteros o cadenas para ser compatible con IDs numéricos o dinámicos
+    list_id: Union[int, str] 
 
 class CardUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     position: Optional[int] = Field(None, ge=1)
-    list_id: Optional[int] = None  # Útil para mover de columna
+    list_id: Optional[Union[int, str]] = None
     due_date: Optional[datetime] = None
 
 class CardResponse(CardBase):
     id: int
-    list_id: int
+    list_id: Union[int, str]
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -69,5 +63,45 @@ class CardResponse(CardBase):
         from_attributes = True
 
 class CardMove(BaseModel):
-    list_id: int
+    list_id: Union[int, str]
     position: int = Field(..., ge=1)
+
+
+# ==========================================
+# ⏱️ SCHEMAS DE HOJA DE TIEMPO / WORKLOGS
+# ==========================================
+
+class WorkLogBase(BaseModel):
+    card_id: int
+    hours: float = Field(..., ge=0.25, description="Mínimo de 0.25 horas")
+    date: date
+    note: Optional[str] = Field(None, max_length=200, description="Nota de máximo 200 caracteres")
+
+    @field_validator("date")
+    @classmethod
+    def validate_date_not_future(cls, v: date) -> date:
+        if v > date.today():
+            raise ValueError("No se pueden registrar horas en fechas futuras.")
+        return v
+
+class WorkLogCreate(WorkLogBase):
+    pass
+
+class WorkLogUpdate(BaseModel):
+    hours: Optional[float] = Field(None, ge=0.25)
+    date: Optional[date] = None
+    note: Optional[str] = Field(None, max_length=200)
+
+    @field_validator("date")
+    @classmethod
+    def validate_date_not_future(cls, v: Optional[date]) -> Optional[date]:
+        if v and v > date.today():
+            raise ValueError("No se pueden registrar horas en fechas futuras.")
+        return v
+
+class WorkLogResponse(WorkLogBase):
+    id: int
+    user_id: int
+
+    class Config:
+        from_attributes = True

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float, Boolean
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float, Boolean, Date
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -13,9 +13,9 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
-    role = Column(String, default="doctor") # Rol por defecto para la app médica
+    role = Column(String, default="doctor")
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow) # Marca de tiempo con DateTime de SQLAlchemy
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relaciones ORM
     boards = relationship("Board", back_populates="owner", cascade="all, delete-orphan")
@@ -57,21 +57,21 @@ class List(Base):
 
 
 # ==============================================================================
-# 4. ENTIDAD TARJETAS (CARDS) - Punto 7
+# 4. ENTIDAD TARJETAS (CARDS)
 # ==============================================================================
 class Card(Base):
     __tablename__ = "cards"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)                         # Título obligatorio
-    description = Column(Text, nullable=True)                    # Descripción opcional
-    position = Column(Integer, nullable=False, default=1)        # Orden visual en la columna
-    list_id = Column(Integer, ForeignKey("lists.id"), nullable=False) # Columna a la que pertenece
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    position = Column(Integer, nullable=False, default=1)
+    # Clave foránea numérica hacia la tabla 'lists' de neocare.db
+    list_id = Column(Integer, ForeignKey("lists.id"), nullable=False) 
     
-    # --- CAMPOS DE TIEMPO Y VENCIMIENTO (Punto 7) ---
-    due_date = Column(DateTime, nullable=True)                   # Fecha de vencimiento para alertas visuales
-    created_at = Column(DateTime, default=datetime.utcnow)       # Marca de tiempo de creación (DateTime correcto con T mayúscula)
-    updated_at = Column(DateTime, nullable=True)                 # Marca de tiempo de actualización tras editar
+    due_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
 
     # Relaciones ORM
     list = relationship("List", back_populates="cards")
@@ -88,7 +88,7 @@ class WorkLog(Base):
     card_id = Column(Integer, ForeignKey("cards.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     hours = Column(Float, nullable=False)
-    date = Column(Date, nullable=False)  # 👈 Cambiado a Date para filtrar semanas limpiamente
+    date = Column(Date, nullable=False)
     note = Column(String(200), nullable=True)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

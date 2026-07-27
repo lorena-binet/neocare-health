@@ -7,9 +7,10 @@ from app.database import engine, Base
 from app import models 
 
 # 1. IMPORTAR ROUTERS
-from app.auth import router as auth_router
+from app.auth.router import router as auth_router
 from app.boards.router import router as boards_router
 from app.cards.router import router as cards_router
+from app.work_logs.router import router as work_logs_router
 
 load_dotenv()
 
@@ -25,7 +26,10 @@ app = FastAPI(
 # CORS para React
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.01:5173",
+        "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,6 +39,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(boards_router)
 app.include_router(cards_router)
+app.include_router(work_logs_router)
 
 @app.get("/")
 def read_root():

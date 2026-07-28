@@ -5,7 +5,7 @@ interface Card {
   id: number;
   title: string;
   description?: string;
-  list_id: number; // Forzamos a que sea number para coincidir con la DB
+  list_id: number;
   position: number;
   due_date?: string;
 }
@@ -46,14 +46,18 @@ function App() {
   const [addingCardColumnId, setAddingCardColumnId] = useState<number | string | null>(null);
   const [newCardTitle, setNewCardTitle] = useState('');
 
-  // Estado para el Drag & Drop
+  // Estados para Edición exclusiva de Títulos
+  const [editingCardId, setEditingCardId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+
+  // Estado para el Drag & Drop HTML5 nativo
   const [draggedCardId, setDraggedCardId] = useState<number | null>(null);
 
   // Helper seguro para convertir cualquier ID de columna/lista a número de SQLite
   const resolveNumericListId = (rawId: number | string): number => {
     if (typeof rawId === 'number') return rawId;
     if (COLUMN_MAP[rawId]) return COLUMN_MAP[rawId];
-    const parsed = parseInt(rawId, 10);
+    const parsed = parseInt(String(rawId), 10);
     return isNaN(parsed) ? 1 : parsed;
   };
 
@@ -87,7 +91,7 @@ function App() {
     fetchBoard();
   }, [token]);
 
-  // Manejo de Iniciar Sesión (OAuth2 / x-www-form-urlencoded requerido por FastAPI)
+  // Manejo de Iniciar Sesión
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
@@ -145,10 +149,9 @@ function App() {
     setBoard(null);
   };
 
-  // Creación de nueva tarjeta enviando un ID numérico exacto para neocare.db
+  // Creación de nueva tarjeta
   const handleCreateCard = async (e: React.FormEvent, listId: number | string) => {
     e.preventDefault();
-
     if (!newCardTitle.trim()) return;
 
     const numericListId = resolveNumericListId(listId);
@@ -166,7 +169,7 @@ function App() {
         },
         body: JSON.stringify({
           title: titleToSubmit,
-          list_id: numericListId, // Envía entero (1, 2, 3...) evitando el 404 de columna no encontrada
+          list_id: numericListId,
           position: 1
         })
       });
@@ -179,6 +182,55 @@ function App() {
       }
     } catch (err) {
       console.error("Error de red al crear la tarjeta:", err);
+    }
+  };
+
+  // Acciones exclusivas para Editar el Título (PUT /cards/{id})
+  const startEditing = (card: Card) => {
+    setEditingCardId(card.id);
+    setEditTitle(card.title);
+  };
+
+  const handleUpdateCardTitle = async (e: React.FormEvent, cardId: number) => {
+    e.preventDefault();
+    if (!editTitle.trim()) return;
+
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/cards/${cardId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: editTitle // Reemplazamos únicamente el título que es lo que se edita
+        })
+      });
+
+      if (res.ok) {
+        setEditingCardId(null);
+        fetchBoard();
+      }
+    } catch (err) {
+      console.error("Error al actualizar la tarjeta:", err);
+    }
+  };
+
+  // Acciones de Borrado (DELETE /cards/{id})
+  const handleDeleteCard = async (cardId: number) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/cards/${cardId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok || res.status === 204) {
+        fetchBoard();
+      }
+    } catch (err) {
+      console.error('Error al eliminar la tarjeta:', err);
     }
   };
 
@@ -196,7 +248,6 @@ function App() {
 
     const numericTargetId = resolveNumericListId(targetListId);
 
-    // Actualización optimista instantánea de la UI
     const updatedCards = board.cards.map(card => {
       if (card.id === draggedCardId) {
         return { ...card, list_id: numericTargetId };
@@ -207,7 +258,6 @@ function App() {
     setBoard({ ...board, cards: updatedCards });
 
     try {
-      // Petición PUT sincronizada con el backend para actualizar la posición/lista de la tarjeta
       await fetch(`http://127.0.0.1:8000/cards/${draggedCardId}`, {
         method: 'PUT',
         headers: {
@@ -323,7 +373,6 @@ function App() {
         {board?.columns?.map((col) => {
           const colNumericId = resolveNumericListId(col.id);
 
-          // Filtrado robusto de tarjetas por ID numérico o de cadena
           const columnCards = board.cards?.filter((card: any) => {
             const cardList = card.list_id ?? card.column_id ?? card.listId;
             return String(cardList) === String(col.id) || resolveNumericListId(cardList) === colNumericId;
@@ -393,23 +442,58 @@ function App() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1 }}>
                 {columnCards.length > 0 ? (
-                  columnCards.map((card: any) => (
+                  columnCards.map((card: Card) => (
                     <div 
                       key={card.id}
-                      draggable
+                      draggable={editingCardId !== card.id}
                       onDragStart={() => handleDragStart(card.id)}
                       style={{ 
                         background: 'white', 
                         padding: '1rem', 
                         borderRadius: '8px', 
                         boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                        cursor: 'grab',
+                        cursor: editingCardId === card.id ? 'default' : 'grab',
                         opacity: draggedCardId === card.id ? 0.5 : 1,
                         transition: 'opacity 0.2s'
                       }}
                     >
-                      <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.25rem' }}>{card.title}</strong>
-                      {card.description && <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#64748b' }}>{card.description}</p>}
+                      {editingCardId === card.id ? (
+                        /* Formulario exclusivo para sobrescribir y reemplazar el TÍTULO */
+                        <form onSubmit={(e) => handleUpdateCardTitle(e, card.id)} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            autoFocus
+                            style={{ width: '100%', padding: '0.4rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                            required
+                          />
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button type="submit" style={{ padding: '0.3rem 0.6rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 'bold' }}>Guardar</button>
+                            <button type="button" onClick={() => setEditingCardId(null)} style={{ padding: '0.3rem 0.6rem', background: '#94a3b8', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}>Cancelar</button>
+                          </div>
+                        </form>
+                      ) : (
+                        /* Vista normal de la tarjeta (el título original se oculta al editar y se reemplaza limpiamente) */
+                        <>
+                          <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.25rem' }}>{card.title}</strong>
+                          
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.4rem' }}>
+                            <button 
+                              onClick={() => startEditing(card)} 
+                              style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.75rem', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteCard(card.id)} 
+                              style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
+                            >
+                              🗑️ Borrar
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))
                 ) : (

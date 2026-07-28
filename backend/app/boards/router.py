@@ -9,13 +9,6 @@ router = APIRouter(
     tags=["Tableros"]
 )
 
-DEFAULT_COLUMNS = [
-    {"id": "backlog", "title": "Pendiente", "position": 1},
-    {"id": "in_progress", "title": "En Progreso", "position": 2},
-    {"id": "review", "title": "Revisión", "position": 3},
-    {"id": "done", "title": "Listo", "position": 4}
-]
-
 @router.get("/initial")
 def get_initial_board(
     db: Session = Depends(get_db),
@@ -34,14 +27,15 @@ def get_initial_board(
     
     if not existing_lists:
         default_lists = [
-            List(id="backlog", board_id=board.id, title="Pendiente", position=1),
-            List(id="in_progress", board_id=board.id, title="En Progreso", position=2),
-            List(id="review", board_id=board.id, title="Revisión", position=3),
-            List(id="done", board_id=board.id, title="Listo", position=4),
+            List(board_id=board.id, title="Pendiente", position=1),
+            List(board_id=board.id, title="En Progreso", position=2),
+            List(board_id=board.id, title="Revisión", position=3),
+            List(board_id=board.id, title="Listo", position=4),
         ]
         db.add_all(default_lists)
         db.commit()
-        existing_lists = default_lists
+        # Recargar para obtener los IDs numéricos generados por SQLite
+        existing_lists = db.query(List).filter(List.board_id == board.id).all()
 
     # 3. Obtener las listas asociadas a este tablero para filtrar las tarjetas correctamente
     list_ids = [l.id for l in existing_lists]
@@ -52,7 +46,9 @@ def get_initial_board(
     # 5. Devolver la estructura para que React pinte el tablero completo
     return {
         "user_email": current_user.email,
-        "columns": DEFAULT_COLUMNS,
+        "columns": [
+            {"id": l.id, "title": l.title, "position": l.position} for l in existing_lists
+        ],
         "cards": [
             {
                 "id": card.id,

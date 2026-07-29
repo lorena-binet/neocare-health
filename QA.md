@@ -37,6 +37,25 @@ Este documento detalla las pruebas sistemáticas realizadas, los incidentes dete
 * **Diagnóstico:** El backend intentaba poblar automáticamente las columnas por defecto (*Pendiente, En Progreso, Revisión, Listo*) asignándoles identificadores de tipo texto (`id="backlog"`, etc.). Sin embargo, el modelo relacional en SQLAlchemy y la base de datos tenían definido el campo `id` de la tabla `lists` estrictamente como un entero autoincremental (`Integer`), provocando una colisión de tipos en SQLite (`sqlite3.IntegrityError: datatype mismatch`).
 * **Corrección aplicada:** Se refactorizó la lógica del endpoint de inicialización del tablero en `router.py`. Se eliminaron los IDs estáticos en texto al instanciar las listas por defecto para permitir que SQLite gestione los identificadores numéricos de manera automática, y se adaptó la respuesta para inyectar dinámicamente dichas columnas con sus respectivos IDs reales hacia la interfaz de React.
 
+### Incidencia 5: Bloqueo de peticiones por políticas de origen cruzado (CORS)
+* **Descripción:** Al iniciar la comunicación cliente-servidor, las peticiones HTTP realizadas desde el entorno de desarrollo de Vite (Frontend) hacia el servidor de FastAPI (Backend) eran rechazadas automáticamente por el navegador.
+* **Diagnóstico:** Las políticas de seguridad predeterminadas de los navegadores bloquean solicitudes entre distintos puertos (`localhost:5173` y `localhost:8000`) si el servidor de API no declara explícitamente qué orígenes tienen autorización.
+* **Corrección aplicada:** Se importó y configuró el middleware `CORSMiddleware` en el archivo principal del backend (`main.py`), habilitando de forma controlada las cabeceras, métodos y credenciales necesarios para permitir una comunicación fluida y segura.
+
+### Incidencia 6: Conflictos de compilación en React por tipado estricto en TypeScript
+* **Descripción:** Durante el desarrollo del componente del tablero, la aplicación presentaba fallos de compilación o comportamientos inesperados al mapear los identificadores y propiedades de las tarjetas y columnas.
+* **Diagnóstico:** Incompatibilidad de tipos al alternar entre IDs numéricos de la base de datos SQLite y referencias de texto utilizadas en la interfaz, sumado a la falta de interfaces estrictas para los estados de las tarjetas.
+* **Corrección aplicada:** Se establecieron interfaces tipadas (`Card`, `Column`, `BoardData`) y se implementó un sistema de mapeo robusto (`COLUMN_MAP` y `resolveNumericListId`) para garantizar la total compatibilidad de tipos entre el cliente y el servidor.
+
+### Incidencia 7: Conflictos de CORS, peticiones *Preflight* y latencia de arranque tras el despliegue en la nube
+* **Descripción:** Tras desplegar el frontend en Vercel y el backend en Render, las primeras peticiones de inicio de sesión y registro fallaban en el navegador mostrando errores de CORS (*"Access to fetch... has been blocked by CORS policy"*), fallos en las peticiones de comprobación previa (*preflight OPTIONS*), y una notable demora inicial al interactuar con el sistema.
+* **Diagnóstico:** 
+  1. El middleware de CORS en FastAPI no incluía inicialmente la URL de producción de Vercel y bloqueaba las cabeceras/métodos complejos necesarios para las peticiones con JSON.
+  2. El plan gratuito del servicio de alojamiento en Render entra en suspensión (*spin down*) tras periodos de inactividad, provocando una latencia de entre 15 y 30 segundos en la primera petición para despertar el servidor.
+* **Corrección aplicada:** 
+  1. Se actualizó la configuración de `CORSMiddleware` en el archivo principal del backend (`main.py`), abriendo los orígenes, métodos y cabeceras mediante `allow_origins=["*"]` para garantizar una comunicación fluida entre Vercel y Render sin bloqueos de seguridad.
+  2. Se documentó la latencia de arranque inicial como un comportamiento esperado del entorno de producción gratuito para futuras pruebas y presentaciones.
+
 ---
 
 ## 3. Limitaciones Conocidas y Alcance

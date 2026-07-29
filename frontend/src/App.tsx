@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 
+// Si tienes MyHours.tsx en tu proyecto, descomenta la siguiente línea:
+// import MyHours from './MyHours';
+
 // Definición de la URL base de la API usando la variable de entorno de Vite o fallback a local
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -33,10 +36,24 @@ const COLUMN_MAP: Record<string, number> = {
   'done': 4
 };
 
+// Componente provisional para "Mis Horas" (Si ya tienes MyHours.tsx creado, puedes borrar esto y usar tu importación)
+function MyHoursView({ token }: { token: string }) {
+  return (
+    <div style={{ background: 'white', padding: '2rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+      <h2 style={{ color: '#0f172a', marginTop: 0 }}>Registro de Horas</h2>
+      <p style={{ color: '#64748b' }}>Aquí puedes ver y registrar las horas dedicadas a las tareas del proyecto.</p>
+      {/* Aquí irá todo el contenido de tu MyHours.tsx */}
+    </div>
+  );
+}
+
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [board, setBoard] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+
+  // Estado para alternar entre el Tablero Kanban ('board') y la vista de Mis Horas ('hours')
+  const [currentView, setCurrentView] = useState<'board' | 'hours'>('board');
 
   // Estados de Autenticación
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
@@ -206,7 +223,7 @@ function App() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          title: editTitle // Reemplazamos únicamente el título que es lo que se edita
+          title: editTitle
         })
       });
 
@@ -348,167 +365,209 @@ function App() {
     );
   }
 
-  if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>Cargando tablero...</div>;
+  if (loading && !board) {
+    return <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>Cargando aplicación...</div>;
   }
 
-  // Vista principal del Tablero Kanban
+  // Vista principal de la aplicación con barra de navegación integrada
   return (
     <div style={{ padding: '1.5rem', fontFamily: 'sans-serif', background: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', background: 'white', padding: '1rem 1.5rem', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#0f172a' }}>NeoCare Health - Tablero Principal</h1>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#0f172a' }}>NeoCare Health</h1>
           {board?.user_email && (
             <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
               Usuario conectado: <strong>{board.user_email}</strong>
             </p>
           )}
         </div>
-        <button 
-          onClick={handleLogout}
-          style={{ padding: '0.5rem 1rem', cursor: 'pointer', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}
-        >
-          Cerrar Sesión
-        </button>
-      </header>
 
-      <div style={{ display: 'flex', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
-        {board?.columns?.map((col) => {
-          const colNumericId = resolveNumericListId(col.id);
-
-          const columnCards = board.cards?.filter((card: any) => {
-            const cardList = card.list_id ?? card.column_id ?? card.listId;
-            return String(cardList) === String(col.id) || resolveNumericListId(cardList) === colNumericId;
-          }) || [];
-
-          return (
-            <div
-              key={col.id}
-              onDragOver={handleDragOver}
-              onDrop={() => handleDrop(col.id)}
+        {/* Barra de navegación entre vistas y botón de salida */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.25rem', borderRadius: '8px', gap: '0.25rem' }}>
+            <button
+              onClick={() => setCurrentView('board')}
               style={{
-                flex: '1 1 0',
-                minWidth: 0,
-                background: '#e2e8f0',
-                borderRadius: '12px',
-                padding: '1rem',
-                minHeight: '75vh',
-                display: 'flex',
-                flexDirection: 'column',
-                boxSizing: 'border-box'
+                padding: '0.4rem 0.8rem',
+                border: 'none',
+                borderRadius: '6px',
+                background: currentView === 'board' ? 'white' : 'transparent',
+                fontWeight: currentView === 'board' ? 'bold' : 'normal',
+                color: currentView === 'board' ? '#0f172a' : '#64748b',
+                cursor: 'pointer',
+                boxShadow: currentView === 'board' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                fontSize: '0.9rem'
               }}
             >
-              <h3 style={{ margin: '0 0 1rem 0', color: '#1e293b', fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{col.title}</span>
-                <span style={{ fontSize: '0.85rem', background: '#cbd5e1', color: '#334155', padding: '0.1rem 0.6rem', borderRadius: '12px', fontWeight: 'bold' }}>
-                  {columnCards.length}
-                </span>
-              </h3>
+              📋 Tablero
+            </button>
+            <button
+              onClick={() => setCurrentView('hours')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                border: 'none',
+                borderRadius: '6px',
+                background: currentView === 'hours' ? 'white' : 'transparent',
+                fontWeight: currentView === 'hours' ? 'bold' : 'normal',
+                color: currentView === 'hours' ? '#0f172a' : '#64748b',
+                cursor: 'pointer',
+                boxShadow: currentView === 'hours' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                fontSize: '0.9rem'
+              }}
+            >
+              ⏱️ Mis Horas
+            </button>
+          </div>
 
-              {addingCardColumnId === col.id ? (
-                <form 
-                  onSubmit={(e) => handleCreateCard(e, col.id)}
-                  style={{ marginBottom: '1rem', background: 'white', padding: '0.75rem', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
-                >
-                  <input
-                    type="text"
-                    placeholder="Título de la tarjeta..."
-                    value={newCardTitle}
-                    onChange={(e) => setNewCardTitle(e.target.value)}
-                    autoFocus
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1', marginBottom: '0.5rem', boxSizing: 'border-box' }}
-                  />
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      type="submit"
-                      style={{ padding: '0.4rem 0.8rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
-                    >
-                      Añadir
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setAddingCardColumnId(null); setNewCardTitle(''); }}
-                      style={{ padding: '0.4rem 0.8rem', background: '#94a3b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <button
-                  onClick={() => setAddingCardColumnId(col.id)}
-                  style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', background: 'white', border: '1px dashed #94a3b8', borderRadius: '8px', color: '#475569', cursor: 'pointer', fontWeight: '500' }}
-                >
-                  + Nueva Tarjeta
-                </button>
-              )}
+          <button 
+            onClick={handleLogout}
+            style={{ padding: '0.5rem 1rem', cursor: 'pointer', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+      </header>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1 }}>
-                {columnCards.length > 0 ? (
-                  columnCards.map((card: Card) => (
-                    <div 
-                      key={card.id}
-                      draggable={editingCardId !== card.id}
-                      onDragStart={() => handleDragStart(card.id)}
-                      style={{ 
-                        background: 'white', 
-                        padding: '1rem', 
-                        borderRadius: '8px', 
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                        cursor: editingCardId === card.id ? 'default' : 'grab',
-                        opacity: draggedCardId === card.id ? 0.5 : 1,
-                        transition: 'opacity 0.2s'
-                      }}
-                    >
-                      {editingCardId === card.id ? (
-                        /* Formulario exclusivo para sobrescribir y reemplazar el TÍTULO */
-                        <form onSubmit={(e) => handleUpdateCardTitle(e, card.id)} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
-                          <input
-                            type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            autoFocus
-                            style={{ width: '100%', padding: '0.4rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
-                            required
-                          />
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                            <button type="submit" style={{ padding: '0.3rem 0.6rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 'bold' }}>Guardar</button>
-                            <button type="button" onClick={() => setEditingCardId(null)} style={{ padding: '0.3rem 0.6rem', background: '#94a3b8', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}>Cancelar</button>
-                          </div>
-                        </form>
-                      ) : (
-                        /* Vista normal de la tarjeta (el título original se oculta al editar y se reemplaza limpiamente) */
-                        <>
-                          <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.25rem' }}>{card.title}</strong>
-                          
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.4rem' }}>
-                            <button 
-                              onClick={() => startEditing(card)} 
-                              style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.75rem', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
-                            >
-                              ✏️ Editar
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteCard(card.id)} 
-                              style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
-                            >
-                              🗑️ Borrar
-                            </button>
-                          </div>
-                        </>
-                      )}
+      {/* Renderizado condicional según la pestaña seleccionada */}
+      {currentView === 'hours' ? (
+        <MyHoursView token={token} />
+      ) : (
+        <div style={{ display: 'flex', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
+          {board?.columns?.map((col) => {
+            const colNumericId = resolveNumericListId(col.id);
+
+            const columnCards = board.cards?.filter((card: any) => {
+              const cardList = card.list_id ?? card.column_id ?? card.listId;
+              return String(cardList) === String(col.id) || resolveNumericListId(cardList) === colNumericId;
+            }) || [];
+
+            return (
+              <div
+                key={col.id}
+                onDragOver={handleDragOver}
+                onDrop={() => handleDrop(col.id)}
+                style={{
+                  flex: '1 1 0',
+                  minWidth: 0,
+                  background: '#e2e8f0',
+                  borderRadius: '12px',
+                  padding: '1rem',
+                  minHeight: '75vh',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <h3 style={{ margin: '0 0 1rem 0', color: '#1e293b', fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{col.title}</span>
+                  <span style={{ fontSize: '0.85rem', background: '#cbd5e1', color: '#334155', padding: '0.1rem 0.6rem', borderRadius: '12px', fontWeight: 'bold' }}>
+                    {columnCards.length}
+                  </span>
+                </h3>
+
+                {addingCardColumnId === col.id ? (
+                  <form 
+                    onSubmit={(e) => handleCreateCard(e, col.id)}
+                    style={{ marginBottom: '1rem', background: 'white', padding: '0.75rem', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Título de la tarjeta..."
+                      value={newCardTitle}
+                      onChange={(e) => setNewCardTitle(e.target.value)}
+                      autoFocus
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1', marginBottom: '0.5rem', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="submit"
+                        style={{ padding: '0.4rem 0.8rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
+                      >
+                        Añadir
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAddingCardColumnId(null); setNewCardTitle(''); }}
+                        style={{ padding: '0.4rem 0.8rem', background: '#94a3b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
+                      >
+                        Cancelar
+                      </button>
                     </div>
-                  ))
+                  </form>
                 ) : (
-                  <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
-                    Arrastra una tarjeta aquí
-                  </div>
+                  <button
+                    onClick={() => setAddingCardColumnId(col.id)}
+                    style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', background: 'white', border: '1px dashed #94a3b8', borderRadius: '8px', color: '#475569', cursor: 'pointer', fontWeight: '500' }}
+                  >
+                    + Nueva Tarjeta
+                  </button>
                 )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1 }}>
+                  {columnCards.length > 0 ? (
+                    columnCards.map((card: Card) => (
+                      <div 
+                        key={card.id}
+                        draggable={editingCardId !== card.id}
+                        onDragStart={() => handleDragStart(card.id)}
+                        style={{ 
+                          background: 'white', 
+                          padding: '1rem', 
+                          borderRadius: '8px', 
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          cursor: editingCardId === card.id ? 'default' : 'grab',
+                          opacity: draggedCardId === card.id ? 0.5 : 1,
+                          transition: 'opacity 0.2s'
+                        }}
+                      >
+                        {editingCardId === card.id ? (
+                          <form onSubmit={(e) => handleUpdateCardTitle(e, card.id)} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              autoFocus
+                              style={{ width: '100%', padding: '0.4rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                              required
+                            />
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                              <button type="submit" style={{ padding: '0.3rem 0.6rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 'bold' }}>Guardar</button>
+                              <button type="button" onClick={() => setEditingCardId(null)} style={{ padding: '0.3rem 0.6rem', background: '#94a3b8', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}>Cancelar</button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.25rem' }}>{card.title}</strong>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.4rem' }}>
+                              <button 
+                                onClick={() => startEditing(card)} 
+                                style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.75rem', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteCard(card.id)} 
+                                style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
+                              >
+                                🗑️ Borrar
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
+                      Arrastra una tarjeta aquí
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

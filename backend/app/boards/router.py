@@ -14,18 +14,17 @@ def get_initial_board(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 1. Buscar o crear el tablero del usuario
+    # 1. Buscar el tablero del usuario
     board = db.query(Board).filter(Board.owner_id == current_user.id).first()
+    
+    # Si por cualquier motivo no lo tuviera, lo creamos de forma segura aquí
     if not board:
         board = Board(title="Mi Tablero Principal", owner_id=current_user.id)
         db.add(board)
         db.commit()
         db.refresh(board)
 
-    # 2. Verificar si las listas existen en la base de datos
-    existing_lists = db.query(List).filter(List.board_id == board.id).all()
-    
-    if not existing_lists:
+        # Crear sus listas por defecto
         default_lists = [
             List(board_id=board.id, title="Pendiente", position=1),
             List(board_id=board.id, title="En Progreso", position=2),
@@ -34,16 +33,18 @@ def get_initial_board(
         ]
         db.add_all(default_lists)
         db.commit()
-        # Recargar para obtener los IDs numéricos generados por SQLite
-        existing_lists = db.query(List).filter(List.board_id == board.id).all()
 
-    # 3. Obtener las listas asociadas a este tablero para filtrar las tarjetas correctamente
+    # 2. Obtener las listas del tablero de forma limpia
+    existing_lists = db.query(List).filter(List.board_id == board.id).order_by(List.position).all()
+    
     list_ids = [l.id for l in existing_lists]
 
-    # 4. Obtener las tarjetas usando el id de las listas (ya que Card no tiene board_id directo)
-    cards = db.query(Card).filter(Card.list_id.in_(list_ids)).all() if list_ids else []
+    # 3. Obtener las tarjetas de forma segura para PostgreSQL
+    cards = []
+    if list_ids:
+        cards = db.query(Card).filter(Card.list_id.in_(list_ids)).all()
 
-    # 5. Devolver la estructura para que React pinte el tablero completo
+    # 4. Devolver la estructura para React
     return {
         "user_email": current_user.email,
         "columns": [

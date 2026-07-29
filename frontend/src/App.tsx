@@ -39,7 +39,7 @@ const COLUMN_MAP: Record<string, number> = {
 };
 
 // Componente interactivo integrado para registrar y visualizar horas con persistencia local
-function MyHoursView({ _token }: { _token: string }) {
+function MyHoursView() {
   const [hours, setHours] = useState('');
   const [description, setDescription] = useState('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -515,7 +515,7 @@ function App() {
       </header>
 
       {currentView === 'hours' ? (
-        <MyHoursView _token={token} />
+        <MyHoursView />
       ) : (
         <div style={{ display: 'flex', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
           {board?.columns?.map((col) => {

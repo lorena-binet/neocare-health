@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 
 from app.database import get_db
-from app.models import User
+from app.models import User, Board, List  # <-- Asegúrate de importar Board y List aquí
 from app.schemas import UserCreate, Token
 from app.security import (
     verify_password,
@@ -27,7 +27,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="El email ya está registrado."
         )
 
-    # 2. Crear hash de la contraseña y guardar
+    # 2. Crear hash de la contraseña y guardar usuario
     hashed_pwd = get_password_hash(user_data.password)
     new_user = User(
         email=email_clean,
@@ -37,6 +37,28 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # 3. CREAR AUTOMÁTICAMENTE EL TABLERO POR DEFECTO PARA EL NUEVO USUARIO
+    default_board = Board(
+        title="Mi Tablero Principal",
+        description="Tablero inicial",
+        owner_id=new_user.id
+    )
+    db.add(default_board)
+    db.commit()
+    db.refresh(default_board)
+    
+    # 4. CREAR LAS 4 LISTAS POR DEFECTO EN ESE TABLERO
+    default_lists = ["Pendiente", "En Progreso", "Revisión", "Listo"]
+    for index, list_title in enumerate(default_lists):
+        new_list = List(
+            title=list_title,
+            position=index + 1,
+            board_id=default_board.id
+        )
+        db.add(new_list)
+    
+    db.commit()
     
     return {"message": "Usuario creado correctamente", "email": new_user.email}
 
@@ -61,10 +83,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 3. Generar token JWT (Pasando el diccionario de payload o subject directamente)
+    # 3. Generar token JWT
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        subject= user.email,
+        subject=user.email,
         expires_delta=access_token_expires
     )
     

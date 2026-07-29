@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 
+// Definición de la URL base de la API usando la variable de entorno de Vite o fallback a local
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
 // Interfaces TypeScript tipadas estrictamente para evitar conflictos con SQLite
 interface Card {
   id: number;
@@ -65,7 +68,7 @@ function App() {
   const fetchBoard = () => {
     if (!token) return;
     setLoading(true);
-    fetch('http://127.0.0.1:8000/boards/initial', {
+    fetch(`${API_URL}/boards/initial`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then((res) => {
@@ -102,7 +105,7 @@ function App() {
     formData.append('password', password);
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/auth/login', {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData,
@@ -125,7 +128,7 @@ function App() {
     setAuthSuccess(null);
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/auth/register', {
+      const res = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -161,7 +164,7 @@ function App() {
     setAddingCardColumnId(null);
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/cards', {
+      const res = await fetch(`${API_URL}/cards`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +199,7 @@ function App() {
     if (!editTitle.trim()) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/cards/${cardId}`, {
+      const res = await fetch(`${API_URL}/cards/${cardId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +222,7 @@ function App() {
   // Acciones de Borrado (DELETE /cards/{id})
   const handleDeleteCard = async (cardId: number) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/cards/${cardId}`, {
+      const res = await fetch(`${API_URL}/cards/${cardId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -258,7 +261,7 @@ function App() {
     setBoard({ ...board, cards: updatedCards });
 
     try {
-      await fetch(`http://127.0.0.1:8000/cards/${draggedCardId}`, {
+      await fetch(`${API_URL}/cards/${draggedCardId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

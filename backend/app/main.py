@@ -42,5 +42,5 @@ app.include_router(work_logs_router)
 def read_root():
     return {
         "status": "online",
-        "message": "Bienvenida Lorena, la base modular y de seguridad de NeoCare está lista"
+        "message": "NeoCare Health API is running"
     }
